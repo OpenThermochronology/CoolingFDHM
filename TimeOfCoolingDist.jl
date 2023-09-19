@@ -4,8 +4,10 @@ using StatGeochem
 # Make sure we're running in the directory where the script is located
 cd(@__DIR__)
 # Read data from file
-filenamebase = "13LVA04_v5.8.0_v3"
+filenamebase = "QTQt-OUTPUT-FILE"
 ext = ".txt"
+
+# print step is either "2" if there are no zero/values between t-T pairs, if value is given, set to "3"
 qtqt_print_step = 2
 filepath = joinpath(@__DIR__, filenamebase*ext)
 
@@ -16,41 +18,12 @@ start, stop = limits[1]+1, limits[2]-1
 # Parse into array-of-arrays
 parsed = lines[start:stop] .|> x -> delim_string_parse(x, ' ', Float64)
 
-## --- Plot image with colormap, to make sure it has been read properly
-
-#using Plots
-#using StatsBase: fit, Histogram
-
-#xresolution = 2000
-#yresolution = 1000
-#tmax = nanmean(parsed .|> x -> maximum(x[5:qtqt_print_step:end-1]))
-#Tmax = maximum(parsed .|> x -> maximum(x[6:qtqt_print_step:end]))
-
-# Resize the post-burnin part of the stationary distribution
-#tTdist = Array{Float64}(undef, xresolution, length(parsed))
-#xq = range(0,tmax,length=xresolution)
-#for i=1:length(parsed)
-#    tTdist[:,i] = linterp1s(parsed[i][5:qtqt_print_step:end-1],parsed[i][6:qtqt_print_step:end],xq)
-#end
-
-# Calculate composite image
-#tTimage = zeros(yresolution,size(tTdist,1))
-#yq = range(0,Tmax,length=yresolution+1)
-#for i=1:size(tTdist,1)
-#    tTimage[:,i] = fit(Histogram,tTdist[i,.!isnan.(tTdist[i,:])],yq,closed=:right).weights
-#end
-
-# Plot image with colorscale # ylcn ramp
-#A = imsc(tTimage,ylcn,0,nanpctile(tTimage,98.5))
-#h = plot(xlabel="Time (Ma)",ylabel="Temperature (°C)",yticks=0:50:Tmax,xticks=0:20:tmax,yminorticks=2,xminorticks=2,tick_dir=:out,framestyle=:box)
-#plot!(h,xq,cntr(yq),A,yflip=false,xflip=false,legend=false,aspectratio=tmax/Tmax/1.5,xlims=(0,tmax),ylims=(0,Tmax))
-
 ## --- Calculate time of first cooling through a given isotherm
-
+# enter time window to search for cooling signal
 starttime = 750
 endtime = 500
 dt = -1 # Must be negative!
-Tq = 120
+Tq = 120 # half-max isotherm temperature
 
 time_interp = starttime:dt:endtime
 coolingdist = Array{Float64}(undef, length(parsed))
