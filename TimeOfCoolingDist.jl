@@ -1,4 +1,6 @@
+############################################################
 ## --- Read QTQT output
+############################################################
 
 using StatGeochem
 # Make sure we're running in the directory where the script is located
@@ -68,5 +70,66 @@ right_fdhm = linterp1s(N[peak_index:end], bincenters[peak_index:end], peak/2)
 fdhm = right_fdhm - left_fdhm
 flush(stdout)
 println("Cooling peak: $(peak_time) + $(right_fdhm - peak_time) - $(peak_time - left_fdhm) Ma")
+
+############################################################
+## --- Take weighted mean of FDHM distributions
+############################################################
+
+using Isoplot, Plots
+using DelimitedFiles
+
+cd(@__DIR__)
+
+# read in all potential 'time of cooling' output .csv to generate a weighted mean
+# of all the distributions that accounts for the asymmetric uncertainties in the FDHM.
+
+files = filter(x->contains(x, ".csv"), readdir("./"))
+distributions = Array{Array{Float64}}(undef, length(files))
+
+# since they are arrays of different length we use random sampling of each array
+# to sieve to a common length
+
+N = 200_000
+
+for i in eachindex(files)
+    dist = readdlm(files[i], ',', Float64, skipstart=1)
+    # @info length(dist)
+    # Sample randomly from the distribution (i.e., sieve, but random)
+    distributions[i] = dist[rand(1:length(dist), N)]
+end
+
+# take weighted mean
+
+dist_of_the_mean = distwmean(distributions...,)
+
+# stepped histogram plot
+
+h = stephist(dist_of_the_mean,
+    normalized = true,
+    xlabel = "Time (Ma)",
+    ylabel = "Probability Density",
+    label = "",
+    framestyle = :box,
+    size = (400, 300),
+    xlims = (500, 800),
+    ylims = (0, 0.035),
+    xflip=true,
+    #color = :red,
+    fill = true, grid=false,
+    lw = 1, lc = :black, linealpha=0.8,
+    alpha = 0.85,
+    fontfamily="DejaVu Sans",
+)
+
+# confidence interval and statistics
+
+ci = CI(dist_of_the_mean)
+display(ci)
+
+# edit this line to plot correct mean
+annotate!(658, 0.031, text("662 ± 18 Ma", :center, 10)),
+
+savefig(h, "Mean-cooling-time.pdf")
+display(h)
 
 ## --- End of File
