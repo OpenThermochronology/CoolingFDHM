@@ -1,15 +1,24 @@
 ############################################################
-## --- Read QTQT output
+## --- Read QTQT output for FDHM calculation
 ############################################################
+
+###################### Citation ############################
+# McDannell, K.T., & Keller, C.B. (2024). 
+# A method for quantifying the time of cooling in thermochronometric inversions. 
+# Geochronology Discussions, 1-22.
+# https://gchron.copernicus.org/preprints/gchron-2024-3/
+###################### Citation ############################
 
 using StatGeochem
 # Make sure we're running in the directory where the script is located
 cd(@__DIR__)
+
 # Read data from file
-filenamebase = "QTQt-OUTPUT-FILE"
+filenamebase = "QTQt-OUTPUT-FILE" # change this to the proper file name!
 ext = ".txt"
 
 # print step is either "2" if there are no zero/values between t-T pairs, if value is given, set to "3"
+
 qtqt_print_step = 2
 filepath = joinpath(@__DIR__, filenamebase*ext)
 
@@ -22,10 +31,14 @@ parsed = lines[start:stop] .|> x -> delim_string_parse(x, ' ', Float64)
 
 ## --- Calculate time of first cooling through a given isotherm
 # enter time window to search for cooling signal
+
 starttime = 750
 endtime = 500
 dt = -1 # Must be negative!
 Tq = 120 # half-max isotherm temperature
+
+# Note: the time interpolation value (dt) above, and the binedge/bin size (see below in calculate histogram)
+# require tuning based on the problem. A dt = -0.1 or -1 seem to work well, binedge should be >= dt.
 
 time_interp = starttime:dt:endtime
 coolingdist = Array{Float64}(undef, length(parsed))
@@ -47,6 +60,7 @@ end
 
 # Save results
 exportdataset((;coolingdist=coolingdist), "$(filenamebase)-coolingdist-$(starttime)-$(endtime)Ma-$(Tq)C.csv", ',')
+
 ## --- Plot results
 
 using Plots
@@ -56,8 +70,9 @@ plot!(h, xlims=(endtime, starttime), ylims=(0, ylims(h)[2]))
 savefig(h, "$(filenamebase)-coolingdist-$(starttime)-$(endtime)Ma-$(Tq)C.pdf")
 display(h)
 
-# Calculate histogram
-binedges = endtime:1:starttime
+# Calculate histogram # --bin size can be adjusted, for large time window, 4-5 Myr works well, small window, 0.1-0.5 Myr
+
+binedges = endtime:1:starttime 
 N = histcounts(coolingdist, binedges)
 bincenters = cntr(binedges)
 peak_index = argmax(N)
@@ -65,14 +80,20 @@ peak = N[peak_index]
 peak_time = bincenters[peak_index]
 
 # Calculate FDHM: full duration at half-maximum
+
 left_fdhm = linterp1s(N[1:peak_index], bincenters[1:peak_index], peak/2)
 right_fdhm = linterp1s(N[peak_index:end], bincenters[peak_index:end], peak/2)
 fdhm = right_fdhm - left_fdhm
 flush(stdout)
+
+# PRINT FDHM
 println("Cooling peak: $(peak_time) + $(right_fdhm - peak_time) - $(peak_time - left_fdhm) Ma")
 
 ############################################################
-## --- Take weighted mean of FDHM distributions
+## --- Take weighted mean of FDHM distributions ---
+# NOTE THAT THE FOLLOWING CODE BLOCK IS ONLY FOR AVERAGING
+# MULTIPLE FDHM DISTRIBUTIONS FROM DIFFERENT Tt MODELS
+# ONLY RUN THE PREVIOUS BLOCK FOR INDIVIDUAL FDHM ESTIMATES
 ############################################################
 
 using Isoplot, Plots
@@ -126,8 +147,8 @@ h = stephist(dist_of_the_mean,
 ci = CI(dist_of_the_mean)
 display(ci)
 
-# edit this line to plot correct mean
-annotate!(658, 0.031, text("662 ± 18 Ma", :center, 10)),
+# EDIT THIS LINE TO PLOT THE CORRECT MEAN
+annotate!(658, 0.031, text("555 ± 55 Ma", :center, 10)),
 
 savefig(h, "Mean-cooling-time.pdf")
 display(h)
